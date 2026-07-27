@@ -61,8 +61,8 @@
       "_base": "panel",
       "_targets": [
         {
-          "expr": "sys_cpu_utilization_rate",
-          "legendFormat": "",
+          "expr": "(irate(sys_cpu_cgroup_usage_seconds_total[1m]) / ignoring(name,mode) sys_cpu_cores_available * 100) or (100 - (irate(sys_cpu_host_seconds_total{mode=\"idle\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100)) or sum without(name) (sys_cpu_utilization_rate)",
+          "legendFormat": "sys_cpu_utilization_rate",
           "_base": "target"
         }
       ],
@@ -71,15 +71,16 @@
           "unit": "percent"
         }
       },
-      "description": "Container-level cpu utilization if running in a container. Otherwise same as host cpu utilization."
+      "description": "Container-level cpu utilization if running in a container. Otherwise same as host cpu utilization.\n\nUses the non-deprecated sys_cpu_cgroup_usage_seconds_total/sys_cpu_host_seconds_total counters when present, falling back to the deprecated sys_cpu_utilization_rate (7.6.0) on older clusters. Matches ns_server's own derivation of sys_cpu_utilization_rate."
     },
     {
       "title": "sysproc_cpu_utilization",
       "datasource": "{data-source:name}",
       "_base": "panel",
+      "description": "Uses the non-deprecated sysproc_cpu_seconds_total counter (mode=user+sys) when present, falling back to the deprecated sysproc_cpu_utilization (7.6.0) on clusters that don't emit it. Matches ns_server's own derivation of sysproc_cpu_utilization. The two irates are added with ignoring(name,mode) as ns_server does: without ignoring(mode) they share no label set and the sum is empty, and dropping name lines the result up with the sum without(name) fallback so `or` returns one series per process.",
       "_targets": [
         {
-          "expr": "sysproc_cpu_utilization",
+          "expr": "(irate(sysproc_cpu_seconds_total{mode=\"user\"}[1m]) + ignoring(name,mode) irate(sysproc_cpu_seconds_total{mode=\"sys\"}[1m])) * 100 or sum without(name) (sysproc_cpu_utilization)",
           "legendFormat": "{{proc}}",
           "_base": "target"
         }

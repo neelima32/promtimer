@@ -36,11 +36,12 @@
   "_panels": [
     {
       "title": "sys_cpu_utilization_rate",
+      "description": "Uses the non-deprecated sys_cpu_cgroup_usage_seconds_total/sys_cpu_host_seconds_total counters when present, falling back to the deprecated sys_cpu_utilization_rate (7.6.0) on older clusters. Matches ns_server's own derivation of sys_cpu_utilization_rate. The fallback is wrapped in sum without(name) so that its label set matches the computed alternatives, which drop the name label; otherwise `or` would union both instead of preferring the non-deprecated one.",
       "_base": "panel",
       "_targets": [
         {
           "datasource": "{data-source:name}",
-          "expr": "sys_cpu_utilization_rate",
+          "expr": "(irate(sys_cpu_cgroup_usage_seconds_total[1m]) / ignoring(name,mode) sys_cpu_cores_available * 100) or (100 - (irate(sys_cpu_host_seconds_total{mode=\"idle\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100)) or sum without(name) (sys_cpu_utilization_rate)",
           "legendFormat": "{data-source:name} sys_cpu_utilization_rate",
           "_base": "target"
         }
@@ -62,12 +63,13 @@
     },
     {
       "title": "sys_mem_limit and used",
+      "description": "sys_mem_limit was ns_server's answer to how much memory this node may use: min(host total, cgroup limit), per memory_quota:choose_limit. It is deprecated (7.6.0) for being ill-defined - it silently means either - in favour of the explicit sys_mem_total and sys_mem_cgroup_limit, which this panel prefers.\n\nThe min is gated on sys_mem_cgroup_limit actually being present, because it only arrived in 7.2.0: on an older snapshot from a container the deprecated sys_mem_limit is the only stat that knows about the cap, and sys_mem_total alone would report host RAM and overstate the limit. sys_mem_total is the last resort. sum without(name) makes the label sets match so `or` picks a single series.",
       "_base": "panel",
       "_targets": [
         {
           "datasource": "{data-source:name}",
-          "expr": "sys_mem_limit",
-          "legendFormat": "{data-source:name} {{name}}",
+          "expr": "(min without(name) (sys_mem_cgroup_limit or sys_mem_total) and sum without(name) (sys_mem_cgroup_limit)) or sum without(name) (sys_mem_limit) or sum without(name) (sys_mem_total)",
+          "legendFormat": "{data-source:name} sys_mem_limit",
           "_base": "target"
         },
         {
@@ -94,12 +96,13 @@
     },
     {
       "title": "sys_mem_free",
+      "description": "sys_mem_free is deprecated (8.0.0) because it only ever reported the same value as sys_mem_actual_free, so this panel reads sys_mem_actual_free and needs no fallback: that stat has existed since 7.0.0, as long as there have been stats snapshots to read.\n\nNote that the stat ns_server's metadata suggests instead, sys_mem_free_sys, is a different quantity - memory not in use even for buffers/cache, new in 8.0.0 - so switching to it would make a node's line jump on upgrade rather than stay comparable.",
       "_base": "panel",
       "_targets": [
         {
           "datasource": "{data-source:name}",
-          "expr": "sys_mem_free",
-          "legendFormat": "{data-source:name} sys_mem_free",
+          "expr": "sys_mem_actual_free",
+          "legendFormat": "{data-source:name} sys_mem_actual_free",
           "_base": "target"
         }
       ],

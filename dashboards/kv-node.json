@@ -508,12 +508,12 @@
       "_base": "panel",
       "_targets": [
         {
-          "expr": "sysproc_cpu_utilization{proc=\"memcached\"}",
+          "expr": "(irate(sysproc_cpu_seconds_total{proc=\"memcached\",mode=\"user\"}[1m]) + ignoring(name,mode) irate(sysproc_cpu_seconds_total{proc=\"memcached\",mode=\"sys\"}[1m])) * 100 or sum without(name) (sysproc_cpu_utilization{proc=\"memcached\"})",
           "legendFormat": "Percentage",
           "_base": "target"
         }
       ],
-      "description": "KV service CPU Utilization of all cores summed up, in percent\n\nsysproc_cpu_utilization{proc=\"memcached\"}"
+      "description": "KV service CPU Utilization of all cores summed up, in percent. Uses the non-deprecated sysproc_cpu_seconds_total counter (mode=user+sys) when present, falling back to the deprecated sysproc_cpu_utilization{proc=\"memcached\"} (7.6.0) on older clusters. The two irates are added with ignoring(name,mode) as ns_server does: without ignoring(mode) they share no label set and the sum is empty, and dropping name lines the result up with the sum without(name) fallback so `or` returns one series."
     },
     {
       "title": "KV CPU Utilization By Thread",

@@ -40,12 +40,13 @@
     },
     {
       "title": "sys_cpu_utilization_rate",
+      "description": "Uses the non-deprecated sys_cpu_cgroup_usage_seconds_total/sys_cpu_host_seconds_total counters when present, falling back to the deprecated sys_cpu_utilization_rate (7.6.0) on older clusters. Matches ns_server's own derivation of sys_cpu_utilization_rate. The fallback is wrapped in sum without(name) so that its label set matches the computed alternatives, which drop the name label; otherwise `or` would union both instead of preferring the non-deprecated one.",
       "_base": "panel",
       "_targets": [
         {
           "datasource": "{data-source:name}",
-          "expr": "sys_cpu_utilization_rate",
-          "legendFormat": "{data-source:name} {{name}}",
+          "expr": "(irate(sys_cpu_cgroup_usage_seconds_total[1m]) / ignoring(name,mode) sys_cpu_cores_available * 100) or (100 - (irate(sys_cpu_host_seconds_total{mode=\"idle\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100)) or sum without(name) (sys_cpu_utilization_rate)",
+          "legendFormat": "{data-source:name} sys_cpu_utilization_rate",
           "_base": "target"
         }
       ],
@@ -66,18 +67,19 @@
     },
     {
       "title": "total cpu & ns-server cpu utilization",
+      "description": "Uses the non-deprecated sys_cpu_cgroup/host_seconds_total counters (in cores) and sysproc_cpu_seconds_total (mode=user+sys) when present, falling back to the deprecated sys_cpu_utilization_rate/sysproc_cpu_utilization (both 7.6.0) on older clusters. Both fallbacks are wrapped in sum without(name) so their label sets match the computed alternatives: without it `or` returns both series, and the resulting two-series vector cannot be multiplied by sys_cpu_cores_available (many-to-one matching error).",
       "_base": "panel",
       "_targets": [
         {
           "datasource": "{data-source:name}",
-          "expr": "sys_cpu_utilization_rate * ignoring(name)sys_cpu_cores_available",
+          "expr": "((irate(sys_cpu_cgroup_usage_seconds_total[1m]) / ignoring(name,mode) sys_cpu_cores_available * 100) or (100 - (irate(sys_cpu_host_seconds_total{mode=\"idle\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100)) or sum without(name) (sys_cpu_utilization_rate)) * ignoring(name) sys_cpu_cores_available",
           "legendFormat": "{data-source:name} sys_cpu_utilization_rate (in cores)",
           "_base": "target"
         },
         {
           "datasource": "{data-source:name}",
-          "expr": "sysproc_cpu_utilization{proc=\"ns_server\"}",
-          "legendFormat": "{data-source:name} {{name}} {{proc}}",
+          "expr": "(irate(sysproc_cpu_seconds_total{proc=\"ns_server\",mode=\"user\"}[1m]) + ignoring(name,mode) irate(sysproc_cpu_seconds_total{proc=\"ns_server\",mode=\"sys\"}[1m])) * 100 or sum without(name) (sysproc_cpu_utilization{proc=\"ns_server\"})",
+          "legendFormat": "{data-source:name} {{proc}}",
           "_base": "target"
         }
       ],
@@ -98,12 +100,13 @@
     },
     {
       "title": "cpu stolen rate",
+      "description": "Uses the non-deprecated sys_cpu_host_seconds_total counter (mode=stolen) when present, falling back to the deprecated sys_cpu_stolen_rate (7.6.0) on older clusters. ns_server derives this from the host counter only, and only on Linux. The fallback is wrapped in sum without(name) so its label set matches the computed alternative; otherwise `or` would return both series.",
       "_base": "panel",
       "_targets": [
         {
           "datasource": "{data-source:name}",
-          "expr": "sys_cpu_stolen_rate",
-          "legendFormat": "{data-source:name} {{name}}",
+          "expr": "(irate(sys_cpu_host_seconds_total{mode=\"stolen\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100) or sum without(name) (sys_cpu_stolen_rate)",
+          "legendFormat": "{data-source:name} cpu stolen rate",
           "_base": "target"
         }
       ],
@@ -124,12 +127,13 @@
     },
     {
       "title": "cpu irq rate",
+      "description": "Uses the non-deprecated sys_cpu_host_seconds_total counter (mode=irq) when present, falling back to the deprecated sys_cpu_irq_rate (7.6.0) on older clusters. ns_server derives this from the host counter only, and only on Linux. The fallback is wrapped in sum without(name) so its label set matches the computed alternative; otherwise `or` would return both series.",
       "_base": "panel",
       "_targets": [
         {
           "datasource": "{data-source:name}",
-          "expr": "sys_cpu_irq_rate",
-          "legendFormat": "{data-source:name} {{name}}",
+          "expr": "(irate(sys_cpu_host_seconds_total{mode=\"irq\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100) or sum without(name) (sys_cpu_irq_rate)",
+          "legendFormat": "{data-source:name} cpu irq rate",
           "_base": "target"
         }
       ],
@@ -206,11 +210,12 @@
     },
     {
       "title": "sys_mem_limit and used",
+      "description": "sys_mem_limit was ns_server's answer to how much memory this node may use: min(host total, cgroup limit), per memory_quota:choose_limit. It is deprecated (7.6.0) for being ill-defined - it silently means either - in favour of the explicit sys_mem_total and sys_mem_cgroup_limit, which this panel prefers.\n\nThe min is gated on sys_mem_cgroup_limit actually being present, because it only arrived in 7.2.0: on an older snapshot from a container the deprecated sys_mem_limit is the only stat that knows about the cap, and sys_mem_total alone would report host RAM and overstate the limit. sys_mem_total is the last resort. sum without(name) makes the label sets match so `or` picks a single series.",
       "_base": "panel",
       "_targets": [
         {
           "datasource": "{data-source:name}",
-          "expr": "sys_mem_limit",
+          "expr": "(min without(name) (sys_mem_cgroup_limit or sys_mem_total) and sum without(name) (sys_mem_cgroup_limit)) or sum without(name) (sys_mem_limit) or sum without(name) (sys_mem_total)",
           "legendFormat": "{data-source:name} sys_mem_limit",
           "_base": "target"
         },

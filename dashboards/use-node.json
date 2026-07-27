@@ -43,7 +43,7 @@
     },
     {
       "title": "CPU Utilization",
-      "description": "What did CPU(s) spent their time doing. Blues represent time that the system is doing work, yellow represents time waiting.",
+      "description": "What did CPU(s) spent their time doing. Blues represent time that the system is doing work, yellow represents time waiting.\n\nEvery series is host-wide: the modes of sys_cpu_host_seconds_total over sys_cpu_host_cores_available. The series stack, so they must share one denominator - mixing in the cgroup counter (which is over the cgroup's cpu quota, not the host's cores) would stack percentages of two different wholes. Couchbase's own share of the host is a separate question, answered by the cgroup counter rather than by this panel.\n\nFallbacks, for clusters predating the counters: the deprecated host rates (sys_cpu_host_user_rate/sys_cpu_host_sys_rate, 7.1.1 to 7.6.0) keep the host denominator, then the deprecated sys_cpu_user_rate/sys_cpu_sys_rate (7.0.0) which sigar computed against the cgroup where one applied - so on 7.0/7.1 snapshots those two series can be control-group rates. Stolen and IRQ are host-only (and Linux-only) in ns_server too. IOWait needs sys_cpu_host_seconds_total{mode=\"iowait\"}, split out of \"idle\" in 8.0.0, and is absent on earlier snapshots. Each fallback is wrapped in sum without(name) so its label set matches the computed alternatives, which drop the name label; otherwise `or` would union both and the stack would double-count.",
       "datasource": "{data-source:name}",
       "gridPos": {
         "w": 8,
@@ -52,22 +52,27 @@
       "_base": "panel",
       "_targets": [
         {
-          "expr": "sys_cpu_user_rate",
+          "expr": "(irate(sys_cpu_host_seconds_total{mode=\"user\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100) or sum without(name) (sys_cpu_host_user_rate) or sum without(name) (sys_cpu_user_rate)",
           "legendFormat": "User",
           "_base": "target"
         },
         {
-          "expr": "sys_cpu_sys_rate",
+          "expr": "(irate(sys_cpu_host_seconds_total{mode=\"sys\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100) or sum without(name) (sys_cpu_host_sys_rate) or sum without(name) (sys_cpu_sys_rate)",
           "legendFormat": "Sys",
           "_base": "target"
         },
         {
-          "expr": "sys_cpu_stolen_rate",
+          "expr": "irate(sys_cpu_host_seconds_total{mode=\"iowait\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100",
+          "legendFormat": "IOWait",
+          "_base": "target"
+        },
+        {
+          "expr": "(irate(sys_cpu_host_seconds_total{mode=\"stolen\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100) or sum without(name) (sys_cpu_stolen_rate)",
           "legendFormat": "Stolen",
           "_base": "target"
         },
         {
-          "expr": "sys_cpu_irq_rate",
+          "expr": "(irate(sys_cpu_host_seconds_total{mode=\"irq\"}[1m]) / ignoring(name,mode) sys_cpu_host_cores_available * 100) or sum without(name) (sys_cpu_irq_rate)",
           "legendFormat": "IRQ",
           "_base": "target"
         }
@@ -86,6 +91,21 @@
           }
         },
         "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "IOWait"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "semi-dark-yellow"
+                }
+              }
+            ]
+          },
           {
             "matcher": {
               "id": "byName",
