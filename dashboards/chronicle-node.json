@@ -90,22 +90,14 @@
     },
     {
       "title": "chronicle sync latency heatmap",
-      "legend": {"show": true},
-        "options": {
-          "calculate": false,
-          "yAxis": {"unit": "s"}
-        },
-      "_base": "panel",
+      "_base": "heatmap",
       "_targets": [
         {
           "datasource": "{data-source:name}",
           "expr": "sum by (le)(increase(cm_chronicle_disk_latency_seconds_bucket{op=\"sync\"}[5m]))",
-          "legendFormat": "{{le}}",
-          "format": "heatmap",
-          "_base": "target"
+          "_base": "heatmap-target"
         }
       ],
-      "type": "heatmap",
       "description": "Plots increase in chronicle sync latency buckets (averaged over 5 minutes). We can see which buckets have hits and their hit rate (reflected by the color)."
     },
     {

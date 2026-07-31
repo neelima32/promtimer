@@ -114,5 +114,50 @@ Add a data-source:name parameter to the panel, as follows:
 You'll notice that adding the data-source:name parameter to the panel caused the template expansion
 to occur at the panel level and you now have two panels, one for each data source.
 
+# The heatmap Base
 
+Panels that plot the distribution of a Prometheus histogram use the `heatmap` base rather than
+`panel`, with targets on the `heatmap-target` base:
 
+    {
+      "title": "chronicle sync latency heatmap",
+      "_base": "heatmap",
+      "_targets": [
+        {
+          "datasource": "{data-source:name}",
+          "expr": "sum by (le)(increase(cm_chronicle_disk_latency_seconds_bucket{op=\"sync\"}[5m]))",
+          "_base": "heatmap-target"
+        }
+      ]
+    }
+
+These bases exist because a heatmap of pre-bucketed data needs three settings that fail silently
+when omitted:
+
+* `options.calculate` must be `false`. Grafana otherwise re-buckets data that Prometheus has
+  already bucketed, and renders a plausible-looking but incorrect heatmap with no error.
+* The target needs `"format": "heatmap"`. Without it the panel renders the buckets as overlapping
+  time series.
+* `options.yAxis.unit` sets the unit of the y axis, which plots bucket bounds. Note this is *not*
+  `fieldConfig.defaults.unit` as it would be on a normal panel. The base defaults it to `s`; a
+  panel over a size histogram should override it:
+
+      "options": {"yAxis": {"unit": "bytes"}}
+
+  Meta attributes are merged recursively into the base, so overriding the unit alone leaves the
+  rest of `options` intact.
+
+Note that the target above sets no `legendFormat`. The `heatmap-target` base supplies `{{le}}`,
+and Promtimer leaves Grafana's `{{...}}` label syntax alone when expanding its own `{...}`
+template parameters.
+
+The base deliberately sets no `options.color`, so Grafana's default scheme applies. Grafana marks
+each scheme with whether it should be inverted for the light or the dark theme, and the default
+scheme is one that inverts for dark. Since Promtimer sets `default_theme = dark` in `custom.ini`,
+panels are viewed against a black background and that inversion is what keeps low cell counts
+legible. Schemes in the group that inverts for light instead -- Turbo, Viridis, Plasma and the
+like -- render their low end at near-black on a dark theme, so a panel that overrides the scheme
+should be checked against Promtimer's own theme rather than a Grafana default install.
+
+Choosing what to plot on a heatmap, and which panels suit a given Couchbase histogram metric, is
+covered separately in [Histogram Metrics](HistogramMetrics.md).

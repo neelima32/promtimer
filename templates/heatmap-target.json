@@ -1,0 +1,7 @@
+{
+    "expr": "{expr}",
+    "format": "heatmap",
+    "interval": "",
+    "legendFormat": "{{le}}",
+    "refId": "A"
+}

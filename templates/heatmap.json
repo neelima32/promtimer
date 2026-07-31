@@ -1,0 +1,57 @@
+{
+    "datasource": "-- Mixed --",
+    "description": "",
+    "fieldConfig": {
+        "defaults": {
+            "custom": {
+                "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                },
+                "scaleDistribution": {
+                    "type": "linear"
+                }
+            }
+        },
+        "overrides": []
+    },
+    "gridPos": {
+        "h": 12,
+        "w": 12
+    },
+    "id": null,
+    "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "cellValues": {
+            "unit": "short"
+        },
+        "exemplars": {
+            "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+            "le": 1e-09
+        },
+        "legend": {
+            "show": true
+        },
+        "rowsFrame": {
+            "layout": "auto"
+        },
+        "showValue": "never",
+        "tooltip": {
+            "show": true,
+            "yHistogram": true
+        },
+        "yAxis": {
+            "axisPlacement": "left",
+            "reverse": false,
+            "unit": "s"
+        }
+    },
+    "pluginVersion": "9.2.0",
+    "targets": [],
+    "title": "Heatmap Panel Title",
+    "type": "heatmap"
+}
