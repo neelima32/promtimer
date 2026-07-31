@@ -523,21 +523,83 @@
       ]
     },
     {
-      "title": "90th percentile ns-server outgoing request latencies",
+      "title": "ns-server outgoing requests slower than 1s",
       "datasource": "{data-source:name}",
       "_base": "panel",
       "_targets": [
         {
-          "expr": "histogram_quantile(0.9, irate(cm_outgoing_http_requests_seconds_bucket[5m]))",
+          "expr": "increase(cm_outgoing_http_requests_seconds_bucket{le=\"+Inf\"}[5m]) - ignoring(le) increase(cm_outgoing_http_requests_seconds_bucket{le=\"1.0\"}[5m])",
           "legendFormat": "{{type}}",
           "_base": "target"
         }
       ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s"
+      "description": "Outgoing ns-server REST requests that took longer than one second, by request type, counted over five minutes.\n\nRead as a count of slow requests rather than a latency: cm_ histogram buckets are consecutive powers of ten, so one second is a bucket bound and this subtraction is exact. A percentile over the same metric would have to interpolate across a bucket spanning 100ms to 1s. See dashboards/HistogramMetrics.md."
+    },
+    {
+      "title": "Latencies",
+      "_base": "row"
+    },
+    {
+      "title": "operations slower than 1s",
+      "datasource": "{data-source:name}",
+      "_base": "panel",
+      "_targets": [
+        {
+          "expr": "sum(increase(cm_memcached_e2e_call_time_seconds_bucket{le=\"+Inf\"}[5m])) - sum(increase(cm_memcached_e2e_call_time_seconds_bucket{le=\"1.0\"}[5m]))",
+          "legendFormat": "memcached call (end to end)",
+          "_base": "target"
+        },
+        {
+          "expr": "sum(increase(cm_chronicle_disk_latency_seconds_bucket{op=\"sync\",le=\"+Inf\"}[5m])) - sum(increase(cm_chronicle_disk_latency_seconds_bucket{op=\"sync\",le=\"1.0\"}[5m]))",
+          "legendFormat": "chronicle sync",
+          "_base": "target"
+        },
+        {
+          "expr": "sum(increase(cm_http_requests_seconds_bucket{le=\"+Inf\"}[5m])) - sum(increase(cm_http_requests_seconds_bucket{le=\"1.0\"}[5m]))",
+          "legendFormat": "incoming REST request",
+          "_base": "target"
+        },
+        {
+          "expr": "sum(increase(cm_outgoing_http_requests_seconds_bucket{le=\"+Inf\"}[5m])) - sum(increase(cm_outgoing_http_requests_seconds_bucket{le=\"1.0\"}[5m]))",
+          "legendFormat": "outgoing REST request",
+          "_base": "target"
+        },
+        {
+          "expr": "sum(increase(cm_status_latency_seconds_bucket{le=\"+Inf\"}[5m])) - sum(increase(cm_status_latency_seconds_bucket{le=\"1.0\"}[5m]))",
+          "legendFormat": "heartbeat status collection",
+          "_base": "target"
+        },
+        {
+          "expr": "sum(increase(cm_ns_config_merger_run_time_seconds_bucket{le=\"+Inf\"}[5m])) - sum(increase(cm_ns_config_merger_run_time_seconds_bucket{le=\"1.0\"}[5m]))",
+          "legendFormat": "ns_config merger run",
+          "_base": "target"
         }
-      }
+      ],
+      "description": "Count of operations exceeding one second over five minutes, across the ns_server subsystems that record latency histograms. Summed over all labels, so a series shows that the subsystem was slow somewhere on this node, not where.\n\nIntended as a starting point: on a healthy node every series sits at zero, and any subsystem that lifts off zero identifies where to look next. Each count is exact rather than interpolated, because one second is a cm_ histogram bucket bound.\n\nA subsystem whose histogram has a ceiling below one second contributes no series at all."
+    },
+    {
+      "title": "memcached call time (end to end)",
+      "datasource": "{data-source:name}",
+      "_base": "heatmap",
+      "_targets": [
+        {
+          "expr": "sum by (le)(increase(cm_memcached_e2e_call_time_seconds_bucket[5m]))",
+          "_base": "heatmap-target"
+        }
+      ],
+      "description": "Distribution of ns_server calls to memcached, measured end to end and summed over all buckets on the node. Each cell is the number of calls landing in that latency band over five minutes, with colour showing the count.\n\nBands are an order of magnitude wide, so this shows which decade calls fall into rather than a precise latency. ns_server also records the queue wait and the call itself separately, as cm_memcached_q_call_time_seconds and cm_memcached_call_time_seconds, which distinguish memcached being slow from ns_server's own workers backing up."
+    },
+    {
+      "title": "incoming REST request latency",
+      "datasource": "{data-source:name}",
+      "_base": "heatmap",
+      "_targets": [
+        {
+          "expr": "sum by (le)(increase(cm_http_requests_seconds_bucket[5m]))",
+          "_base": "heatmap-target"
+        }
+      ],
+      "description": "Distribution of REST requests served by ns-server on this node. Each cell is the number of requests landing in that latency band over five minutes.\n\nBands are an order of magnitude wide. Requests exceeding the histogram ceiling are counted in the +Inf band."
     }
   ]
 }
